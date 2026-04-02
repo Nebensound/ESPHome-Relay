@@ -20,8 +20,6 @@ jobs:
 
       - name: Bump version
         uses: ./.github/actions/version-bump
-        with:
-          commit-suffix: "[skip ci]"
 
   test-rust:
     name: Rust Tests

@@ -11,6 +11,15 @@ RUN cargo build --release
 # Stage 2: Runtime
 FROM debian:bookworm-slim
 
+ARG BUILD_VERSION=dev
+
+LABEL \
+    io.hass.name="ESPHome Firmware Relay" \
+    io.hass.description="Lokaler Proxy/Cache für ESPHome OTA-Updates aus privaten GitHub Repos" \
+    io.hass.version="${BUILD_VERSION}" \
+    io.hass.type="addon" \
+    io.hass.arch="amd64|aarch64|armv7"
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
