@@ -11,15 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Read version from Cargo.toml
+      - name: Calculate version
         id: version
-        run: |
-          VERSION=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Release version: $VERSION"
+        uses: ./.github/actions/version-bump
+        with:
+          push: "false"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -34,3 +37,12 @@ jobs:
           git checkout develop
           git merge main --no-edit
           git push origin develop
+
+  build:
+    needs: release
+    uses: ./.github/workflows/build-addon.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    permissions:
+      contents: read
+      packages: write
