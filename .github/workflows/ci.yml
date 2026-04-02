@@ -7,13 +7,74 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  version-bump:
+    name: Version Bump
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Calculate next version
+        id: version
+        uses: paulhatch/semantic-version@v6.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          minor_pattern: "(MINOR)"
+          version_format: "${major}.${minor}.${patch}"
+          bump_each_commit: false
+
+      - name: Bump version if needed
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CARGO_VERSION=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "Expected: $VERSION | Current: $CARGO_VERSION"
+          if [ "$CARGO_VERSION" = "$VERSION" ]; then
+            echo "Version already correct."
+            exit 0
+          fi
+          cd esphome-relay
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+          sed -i "s/^version: .*/version: $VERSION/" config.yaml
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add esphome-relay/Cargo.toml esphome-relay/config.yaml
+          git commit -m "chore: bump version to $VERSION [skip ci]"
+          git push
+
+      - name: Verify version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CARGO=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          CONFIG=$(grep '^version:' esphome-relay/config.yaml | sed 's/version: *//')
+          python3 -c "
+          from packaging.version import Version
+          expected = Version('$VERSION')
+          cargo = Version('$CARGO')
+          config = Version('$CONFIG')
+          print(f'Expected: {expected} | Cargo.toml: {cargo} | config.yaml: {config}')
+          if cargo != expected or config != expected:
+              print(f'::error::Version mismatch! Expected {expected}, got Cargo.toml={cargo}, config.yaml={config}')
+              raise SystemExit(1)
+          print('Version verified.')
+          "
+
+  test-rust:
+    name: Rust Tests
+    needs: [version-bump]
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: esphome-relay
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -28,22 +89,68 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('esphome-relay/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Check version sync (Cargo.toml == config.yaml)
-        run: |
-          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          CONFIG_VERSION=$(grep '^version:' config.yaml | sed 's/version: *//')
-          echo "Cargo.toml: $CARGO_VERSION"
-          echo "config.yaml: $CONFIG_VERSION"
-          if [ "$CARGO_VERSION" != "$CONFIG_VERSION" ]; then
-            echo "::error::Version mismatch! Cargo.toml ($CARGO_VERSION) != config.yaml ($CONFIG_VERSION)"
-            exit 1
-          fi
-
       - name: Run tests
         run: cargo test
+
+  fmt:
+    name: Formatting
+    needs: [version-bump]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: esphome-relay
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Check formatting
         run: cargo fmt -- --check
 
+  clippy:
+    name: Clippy
+    needs: [version-bump]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: esphome-relay
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            esphome-relay/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('esphome-relay/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
       - name: Clippy
         run: cargo clippy -- -D warnings
+
+  test:
+    name: Test
+    if: always()
+    needs: [version-bump, test-rust, fmt, clippy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.version-bump.result }}" == "failure" || \
+                "${{ needs.test-rust.result }}" == "failure" || \
+                "${{ needs.fmt.result }}" == "failure" || \
+                "${{ needs.clippy.result }}" == "failure" ]]; then
+            echo "::error::One or more jobs failed."
+            exit 1
+          fi
+          echo "All checks passed."
