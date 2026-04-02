@@ -1,0 +1,78 @@
+name: Version Bump
+description: Calculate next SemVer version and bump Cargo.toml + config.yaml if needed
+
+inputs:
+  push-ref:
+    description: Git ref to push to (e.g. "origin main"). Leave empty to push to current branch.
+    required: false
+    default: ""
+  commit-suffix:
+    description: Suffix appended to commit message (e.g. "[skip ci]")
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: The calculated version
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Calculate next version
+      id: version
+      uses: paulhatch/semantic-version@v6.0.2
+      with:
+        tag_prefix: "v"
+        major_pattern: "(MAJOR)"
+        minor_pattern: "(MINOR)"
+        version_format: "${major}.${minor}.${patch}"
+        bump_each_commit: false
+
+    - name: Bump version if needed
+      shell: bash
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        CARGO_VERSION=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "Expected: $VERSION | Current: $CARGO_VERSION"
+        if [ "$CARGO_VERSION" = "$VERSION" ]; then
+          echo "Version already correct."
+          exit 0
+        fi
+        cd esphome-relay
+        sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+        sed -i "s/^version: .*/version: $VERSION/" config.yaml
+        cd ..
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add esphome-relay/Cargo.toml esphome-relay/config.yaml
+        SUFFIX="${{ inputs.commit-suffix }}"
+        MSG="chore: bump version to $VERSION"
+        if [ -n "$SUFFIX" ]; then
+          MSG="$MSG $SUFFIX"
+        fi
+        git commit -m "$MSG"
+        PUSH_REF="${{ inputs.push-ref }}"
+        if [ -n "$PUSH_REF" ]; then
+          git push $PUSH_REF
+        else
+          git push
+        fi
+
+    - name: Verify version
+      shell: bash
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        CARGO=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        CONFIG=$(grep '^version:' esphome-relay/config.yaml | sed 's/version: *//')
+        python3 -c "
+        from packaging.version import Version
+        expected = Version('$VERSION')
+        cargo = Version('$CARGO')
+        config = Version('$CONFIG')
+        print(f'Expected: {expected} | Cargo.toml: {cargo} | config.yaml: {config}')
+        if cargo != expected or config != expected:
+            print(f'::error::Version mismatch! Expected {expected}, got Cargo.toml={cargo}, config.yaml={config}')
+            raise SystemExit(1)
+        print('Version verified.')
+        "

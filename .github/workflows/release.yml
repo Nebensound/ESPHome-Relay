@@ -16,51 +16,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Calculate next version
+      - name: Bump version
         id: version
-        uses: paulhatch/semantic-version@v6.0.2
+        uses: ./.github/actions/version-bump
         with:
-          tag_prefix: "v"
-          major_pattern: "(MAJOR)"
-          minor_pattern: "(MINOR)"
-          version_format: "${major}.${minor}.${patch}"
-          bump_each_commit: false
-
-      - name: Bump version if needed
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          CARGO_VERSION=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          echo "Expected: $VERSION | Current: $CARGO_VERSION"
-          if [ "$CARGO_VERSION" = "$VERSION" ]; then
-            echo "Version already correct."
-            exit 0
-          fi
-          cd esphome-relay
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
-          sed -i "s/^version: .*/version: $VERSION/" config.yaml
-          cd ..
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add esphome-relay/Cargo.toml esphome-relay/config.yaml
-          git commit -m "chore: bump version to $VERSION"
-          git push origin main
-
-      - name: Verify version
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          CARGO=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          CONFIG=$(grep '^version:' esphome-relay/config.yaml | sed 's/version: *//')
-          python3 -c "
-          from packaging.version import Version
-          expected = Version('$VERSION')
-          cargo = Version('$CARGO')
-          config = Version('$CONFIG')
-          print(f'Expected: {expected} | Cargo.toml: {cargo} | config.yaml: {config}')
-          if cargo != expected or config != expected:
-              print(f'::error::Version mismatch! Expected {expected}, got Cargo.toml={cargo}, config.yaml={config}')
-              raise SystemExit(1)
-          print('Version verified.')
-          "
+          push-ref: "origin main"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
