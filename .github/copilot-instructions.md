@@ -28,6 +28,11 @@ Siehe [README.md](../../README.md) für Projektbeschreibung, Konfiguration, API-
   - `(MAJOR)` → Major-Bump (Breaking Changes)
   - `(MINOR)` → Minor-Bump (neue Features)
   - Sonst → Patch-Bump (Bugfixes)
+- **SemVer-Regeln (Rust/Cargo)**: Es gelten die [Rust SemVer-Konventionen](https://doc.rust-lang.org/cargo/reference/semver.html):
+  - **Major** (1.x.x → 2.0.0): Öffentliche API-Änderungen die bestehende Nutzer brechen (entfernte/umbenannte Endpoints, geänderte JSON-Schemas, geänderte Config-Felder ohne Rückwärtskompatibilität)
+  - **Minor** (0.x.0 → 0.x+1.0): Neue Features, neue Endpoints, neue Config-Optionen – alles was rückwärtskompatibel ist
+  - **Patch** (0.0.x → 0.0.x+1): Bugfixes, Performance-Verbesserungen, interne Refactorings ohne API-Änderung
+  - **Vor 1.0.0**: Minor-Bumps dürfen Breaking Changes enthalten (API ist noch nicht stabil)
 - **Commit-Messages**: Conventional Commits
 - **Rust**: Ein Modul pro Verantwortungsbereich (`github.rs`, `cache.rs`, `server.rs`, `webhook.rs`, `status.rs`, `config.rs`), API-Calls in dedizierten Modulen mit Rate-Limit-Respekt
 - **Formatierung**: Immer `cargo fmt` ausführen bevor Code committet wird. CI prüft mit `cargo fmt -- --check` und schlägt bei Abweichungen fehl.
