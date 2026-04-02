@@ -95,10 +95,30 @@ jobs:
       - name: Clippy
         run: cargo clippy -- -D warnings
 
+  validate-config:
+    name: Validate Addon Config
+    needs: [version-bump]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate config.yaml
+        run: python scripts/validate_config.py
+
   test:
     name: Test
     if: always()
-    needs: [version-bump, test-rust, fmt, clippy]
+    needs: [version-bump, test-rust, fmt, clippy, validate-config]
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
@@ -106,7 +126,8 @@ jobs:
           if [[ "${{ needs.version-bump.result }}" == "failure" || \
                 "${{ needs.test-rust.result }}" == "failure" || \
                 "${{ needs.fmt.result }}" == "failure" || \
-                "${{ needs.clippy.result }}" == "failure" ]]; then
+                "${{ needs.clippy.result }}" == "failure" || \
+                "${{ needs.validate-config.result }}" == "failure" ]]; then
             echo "::error::One or more jobs failed."
             exit 1
           fi
