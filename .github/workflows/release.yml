@@ -13,14 +13,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
-      - name: Bump version
+      - name: Read version from Cargo.toml
         id: version
-        uses: ./.github/actions/version-bump
-        with:
-          push-ref: "origin main"
+        run: |
+          VERSION=$(grep '^version' esphome-relay/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
