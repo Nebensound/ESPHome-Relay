@@ -29,7 +29,7 @@ schema:
   poll_interval_minutes: "int(5,1440)"
   webhook_secret: str?
   cache_dir: str
-  log_level: list(trace|debug|info|warn|error)
+  log_level: select(trace|debug|info|warn|error)
 ports:
   "8099/tcp": 8099
 ports_description:

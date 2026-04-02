@@ -300,7 +300,7 @@ dependencies = [
 
 [[package]]
 name = "esphome-relay"
-version = "0.2.3"
+version = "0.2.5"
 dependencies = [
  "axum",
  "hex",
