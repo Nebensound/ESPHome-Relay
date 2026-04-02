@@ -80,6 +80,7 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -174,5 +175,107 @@ mod tests {
         let (owner, repo) = cfg.repo_parts();
         assert_eq!(owner, "Owner");
         assert_eq!(repo, "MyRepo");
+    }
+
+    /// Validates the HA addon config.yaml against Home Assistant schema rules.
+    /// Catches invalid schema types (like `select()`) that would make HA ignore the addon.
+    #[test]
+    fn test_ha_addon_config_yaml_schema() {
+        let yaml_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("config.yaml");
+        let content =
+            std::fs::read_to_string(&yaml_path).expect("config.yaml should exist in project root");
+
+        let doc: serde_yaml::Value =
+            serde_yaml::from_str(&content).expect("config.yaml should be valid YAML");
+        let map = doc
+            .as_mapping()
+            .expect("config.yaml root should be a mapping");
+
+        // Required top-level keys
+        for key in ["name", "version", "slug", "arch"] {
+            assert!(
+                map.contains_key(&serde_yaml::Value::String(key.to_string())),
+                "config.yaml missing required key: {key}"
+            );
+        }
+
+        // Validate schema types if schema section exists
+        if let Some(schema_val) = map.get(&serde_yaml::Value::String("schema".to_string())) {
+            let schema = schema_val.as_mapping().expect("schema should be a mapping");
+
+            // Valid HA addon schema type patterns
+            let valid_patterns: &[&dyn Fn(&str) -> bool] = &[
+                &|s: &str| {
+                    matches!(
+                        s,
+                        "str"
+                            | "str?"
+                            | "bool"
+                            | "bool?"
+                            | "int"
+                            | "int?"
+                            | "float"
+                            | "float?"
+                            | "email"
+                            | "email?"
+                            | "url"
+                            | "url?"
+                            | "port"
+                            | "port?"
+                            | "password"
+                            | "password?"
+                    )
+                },
+                &|s: &str| s.starts_with("int(") && s.ends_with(')'), // int(min,max)
+                &|s: &str| s.starts_with("float(") && s.ends_with(')'), // float(min,max)
+                &|s: &str| s.starts_with("match(") && s.ends_with(')'), // match(regex)
+                &|s: &str| s.starts_with("list(") && s.ends_with(')'), // list(type)
+                &|s: &str| s.contains('|') && !s.contains('('),       // enum: val1|val2|val3
+            ];
+
+            for (key, value) in schema.iter() {
+                let key_str = key.as_str().unwrap_or("??");
+                if let Some(type_str) = value.as_str() {
+                    let is_valid = valid_patterns.iter().any(|check| check(type_str));
+                    assert!(
+                        is_valid,
+                        "Invalid HA addon schema type for '{key_str}': '{type_str}'. \
+                         Valid types: str, int, float, bool, email, url, port, password \
+                         (with optional ?), int(min,max), float(min,max), match(regex), \
+                         list(type), or enum values separated by |"
+                    );
+                }
+            }
+        }
+
+        // Validate options defaults match schema keys
+        if let (Some(options_val), Some(schema_val)) = (
+            map.get(&serde_yaml::Value::String("options".to_string())),
+            map.get(&serde_yaml::Value::String("schema".to_string())),
+        ) {
+            let options: HashMap<String, serde_yaml::Value> =
+                serde_yaml::from_value(options_val.clone()).expect("options should be a mapping");
+            let schema: HashMap<String, serde_yaml::Value> =
+                serde_yaml::from_value(schema_val.clone()).expect("schema should be a mapping");
+
+            for key in options.keys() {
+                assert!(
+                    schema.contains_key(key),
+                    "Option '{key}' has no matching schema entry"
+                );
+            }
+            for key in schema.keys() {
+                let is_optional = schema
+                    .get(key)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| s.ends_with('?'));
+                if !is_optional {
+                    assert!(
+                        options.contains_key(key),
+                        "Required schema key '{key}' has no default in options"
+                    );
+                }
+            }
+        }
     }
 }

@@ -1,4 +1,4 @@
-# Copilot Instructions – ESPHome Firmware Relay
+ja # Copilot Instructions – ESPHome Firmware Relay
 
 Siehe [README.md](../../README.md) für Projektbeschreibung, Konfiguration, API-Endpunkte und Funktionsweise.
 
