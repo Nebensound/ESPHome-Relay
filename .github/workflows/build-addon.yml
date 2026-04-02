@@ -43,8 +43,10 @@ jobs:
           context: ./esphome-relay
           push: true
           platforms: linux/amd64,linux/arm64,linux/arm/v7
+          build-args: |
+            BUILD_VERSION=${{ steps.meta.outputs.version }}
           tags: |
             ghcr.io/nebensound/esphome-relay:latest
-            ghcr.io/nebensound/esphome-relay:v${{ steps.meta.outputs.version }}
+            ghcr.io/nebensound/esphome-relay:${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
