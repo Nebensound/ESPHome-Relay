@@ -2,6 +2,10 @@ name: Version Bump
 description: Calculate next SemVer version and bump Cargo.toml + config.yaml if needed
 
 inputs:
+  push:
+    description: Whether to commit and push the version bump. Set to 'false' to only update files locally.
+    required: false
+    default: "true"
   push-ref:
     description: Git ref to push to (e.g. "origin main"). Leave empty to push to current branch.
     required: false
@@ -43,20 +47,24 @@ runs:
         sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
         sed -i "s/^version: .*/version: $VERSION/" config.yaml
         cd ..
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add esphome-relay/Cargo.toml esphome-relay/config.yaml
-        SUFFIX="${{ inputs.commit-suffix }}"
-        MSG="chore: bump version to $VERSION"
-        if [ -n "$SUFFIX" ]; then
-          MSG="$MSG $SUFFIX"
-        fi
-        git commit -m "$MSG"
-        PUSH_REF="${{ inputs.push-ref }}"
-        if [ -n "$PUSH_REF" ]; then
-          git push $PUSH_REF
+        if [ "${{ inputs.push }}" = "true" ]; then
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add esphome-relay/Cargo.toml esphome-relay/config.yaml
+          SUFFIX="${{ inputs.commit-suffix }}"
+          MSG="chore: bump version to $VERSION"
+          if [ -n "$SUFFIX" ]; then
+            MSG="$MSG $SUFFIX"
+          fi
+          git commit -m "$MSG"
+          PUSH_REF="${{ inputs.push-ref }}"
+          if [ -n "$PUSH_REF" ]; then
+            git push $PUSH_REF
+          else
+            git push
+          fi
         else
-          git push
+          echo "Push disabled – files updated locally only."
         fi
 
     - name: Verify version
