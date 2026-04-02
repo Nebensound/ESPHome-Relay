@@ -1,6 +1,6 @@
 name: ESPHome Firmware Relay
 description: Lokaler Proxy/Cache für ESPHome OTA-Updates aus privaten GitHub Repos
-version: 0.2.4
+version: 0.3.0
 slug: esphome-relay
 image: ghcr.io/nebensound/esphome-relay
 url: https://github.com/Nebensound/ESPHome-Relay
@@ -29,7 +29,7 @@ schema:
   poll_interval_minutes: "int(5,1440)"
   webhook_secret: str?
   cache_dir: str
-  log_level: list(trace|debug|info|warn|error)
+  log_level: select(trace|debug|info|warn|error)
 ports:
   "8099/tcp": 8099
 ports_description:
