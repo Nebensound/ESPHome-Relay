@@ -12,19 +12,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Determine version
+      - name: Bump version
         id: version
-        uses: paulhatch/semantic-version@v5.4.0
+        uses: ./.github/actions/version-bump
         with:
-          tag_prefix: "v"
-          major_pattern: "(MAJOR)"
-          minor_pattern: "(MINOR)"
-          version_format: "${major}.${minor}.${patch}"
-          bump_each_commit: false
+          push-ref: "origin main"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -32,3 +28,10 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
+
+      - name: Sync version back to develop
+        run: |
+          git fetch origin develop
+          git checkout develop
+          git merge main --no-edit
+          git push origin develop

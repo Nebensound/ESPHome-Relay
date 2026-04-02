@@ -7,19 +7,39 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  version-bump:
+    name: Version Bump
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Bump version
+        uses: ./.github/actions/version-bump
+        with:
+          commit-suffix: "[skip ci]"
+
+  test-rust:
+    name: Rust Tests
+    needs: [version-bump]
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: esphome-relay
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -31,8 +51,65 @@ jobs:
       - name: Run tests
         run: cargo test
 
+  fmt:
+    name: Formatting
+    needs: [version-bump]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: esphome-relay
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Check formatting
         run: cargo fmt -- --check
 
+  clippy:
+    name: Clippy
+    needs: [version-bump]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: esphome-relay
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            esphome-relay/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('esphome-relay/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
       - name: Clippy
         run: cargo clippy -- -D warnings
+
+  test:
+    name: Test
+    if: always()
+    needs: [version-bump, test-rust, fmt, clippy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.version-bump.result }}" == "failure" || \
+                "${{ needs.test-rust.result }}" == "failure" || \
+                "${{ needs.fmt.result }}" == "failure" || \
+                "${{ needs.clippy.result }}" == "failure" ]]; then
+            echo "::error::One or more jobs failed."
+            exit 1
+          fi
+          echo "All checks passed."
