@@ -13,8 +13,6 @@ pub struct Release {
 pub struct Asset {
     pub name: String,
     pub browser_download_url: String,
-    #[serde(default)]
-    pub size: u64,
 }
 
 /// Parsed device info extracted from release assets
@@ -161,7 +159,6 @@ mod tests {
         Asset {
             name: name.to_string(),
             browser_download_url: url.to_string(),
-            size: 100,
         }
     }
 
@@ -269,7 +266,6 @@ mod tests {
         assert_eq!(release.tag_name, "v2025.3.0");
         assert_eq!(release.assets.len(), 1);
         assert_eq!(release.assets[0].name, "test-firmware.ota.bin");
-        assert_eq!(release.assets[0].size, 512000);
     }
 
     #[test]
@@ -284,13 +280,4 @@ mod tests {
         assert_eq!(release.tag_name, "v1.0");
     }
 
-    #[test]
-    fn test_asset_size_defaults_to_zero() {
-        let json = r#"{
-            "name": "test.bin",
-            "browser_download_url": "https://example.com/test"
-        }"#;
-        let asset: Asset = serde_json::from_str(json).unwrap();
-        assert_eq!(asset.size, 0);
-    }
 }
