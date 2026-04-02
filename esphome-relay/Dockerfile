@@ -1,6 +1,6 @@
 # Multi-stage build: Rust compile → minimal runtime
 # Stage 1: Build
-FROM rust:1.87-bookworm AS builder
+FROM rust:1.94-bookworm AS builder
 
 WORKDIR /build
 COPY Cargo.toml Cargo.lock* ./
