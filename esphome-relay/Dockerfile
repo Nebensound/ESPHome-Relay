@@ -5,13 +5,16 @@ FROM --platform=$BUILDPLATFORM rust:1.94-bookworm AS builder
 ARG TARGETPLATFORM
 
 # Install cargo-zigbuild + zig for cross-compilation, determine Rust target
-RUN pip install ziglang --break-system-packages \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install ziglang --break-system-packages \
     && cargo install cargo-zigbuild \
     && case "$TARGETPLATFORM" in \
-         linux/amd64)  echo "x86_64-unknown-linux-gnu" ;; \
-         linux/arm64)  echo "aarch64-unknown-linux-gnu" ;; \
-         linux/arm/v7) echo "armv7-unknown-linux-gnueabihf" ;; \
-       esac > /rust_target \
+    linux/amd64)  echo "x86_64-unknown-linux-gnu" ;; \
+    linux/arm64)  echo "aarch64-unknown-linux-gnu" ;; \
+    linux/arm/v7) echo "armv7-unknown-linux-gnueabihf" ;; \
+    esac > /rust_target \
     && rustup target add $(cat /rust_target)
 
 WORKDIR /build
