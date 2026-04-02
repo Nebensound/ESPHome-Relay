@@ -1,13 +1,5 @@
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
-
-/// Metadata for a cached device firmware
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CachedDevice {
-    pub name: String,
-    pub version: String,
-}
 
 /// Manages the local firmware cache directory.
 ///
@@ -99,10 +91,10 @@ impl FirmwareCache {
             Err(_) => return devices,
         };
         for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                if let Some(name) = entry.file_name().to_str() {
-                    devices.push(name.to_string());
-                }
+            if entry.path().is_dir()
+                && let Some(name) = entry.file_name().to_str()
+            {
+                devices.push(name.to_string());
             }
         }
         devices.sort();

@@ -21,8 +21,6 @@ pub struct AppState {
     pub status: StatusTracker,
     pub webhook_secret: Option<String>,
     pub refresh_notify: Arc<Notify>,
-    #[allow(dead_code)]
-    pub relay_base_url: String,
 }
 
 /// Build the Axum router with all routes
@@ -224,7 +222,6 @@ mod tests {
             status: StatusTracker::new(),
             webhook_secret: Some("test-secret".to_string()),
             refresh_notify: Arc::new(Notify::new()),
-            relay_base_url: "http://localhost:8099".to_string(),
         }
     }
 

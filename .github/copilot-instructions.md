@@ -33,8 +33,8 @@ Siehe [README.md](../../README.md) für Projektbeschreibung, Konfiguration, API-
 - **Formatierung**: Immer `cargo fmt` ausführen bevor Code committet wird. CI prüft mit `cargo fmt -- --check` und schlägt bei Abweichungen fehl.
 - **Clippy**: Code muss `cargo clippy -- -D warnings` bestehen (Warnings = Errors). Häufige Stolperfallen:
   - `splitn(2, x)` → `split_once(x)` verwenden
-  - Felder/Methoden die erst zur Laufzeit genutzt werden: `#[allow(dead_code)]` annotieren
   - Vor jedem Commit: `cargo fmt && cargo clippy -- -D warnings && cargo test`
+- **Compiler-Warnings ernst nehmen**: Niemals Warnings mit `#[allow(...)]` unterdrücken, sondern die Empfehlung des Compilers umsetzen (z.B. unbenutzten Code entfernen statt `#[allow(dead_code)]`). Einzige Ausnahme: wenn es einen konkreten, technischen Grund gibt – dann mit Kommentar direkt darüber dokumentieren, warum die Unterdrückung nötig ist.
 
 ## Design-Guidelines
 
@@ -110,12 +110,12 @@ docker build -t esphome-relay .
 
 ### Modul-Übersicht
 
-| Modul | Verantwortung | Testbar |
-|---|---|---|
-| `config.rs` | `/data/options.json` parsen + validieren | Unit-Tests mit tempfile |
-| `cache.rs` | Firmware lesen/schreiben, Manifest-Rewrite, Sync-Delete | Unit-Tests mit tempfile |
-| `github.rs` | GitHub API (Releases, Downloads), Asset-Parsing | Unit-Tests (Parsing), HTTP nur live |
-| `status.rs` | Geräte-Status-Tracking (Thread-safe), Versionsvergleich via `semver` | Unit-Tests |
-| `webhook.rs` | HMAC-SHA256 Signatur-Validierung, Event-Typ-Prüfung | Unit-Tests |
-| `server.rs` | Axum-Router, alle Endpoints, Ingress-HTML-Panel | Integration-Tests via `tower::ServiceExt` |
-| `main.rs` | Verdrahtung, Background-Sync-Task, Server-Start | – |
+| Modul        | Verantwortung                                                        | Testbar                                   |
+| ------------ | -------------------------------------------------------------------- | ----------------------------------------- |
+| `config.rs`  | `/data/options.json` parsen + validieren                             | Unit-Tests mit tempfile                   |
+| `cache.rs`   | Firmware lesen/schreiben, Manifest-Rewrite, Sync-Delete              | Unit-Tests mit tempfile                   |
+| `github.rs`  | GitHub API (Releases, Downloads), Asset-Parsing                      | Unit-Tests (Parsing), HTTP nur live       |
+| `status.rs`  | Geräte-Status-Tracking (Thread-safe), Versionsvergleich via `semver` | Unit-Tests                                |
+| `webhook.rs` | HMAC-SHA256 Signatur-Validierung, Event-Typ-Prüfung                  | Unit-Tests                                |
+| `server.rs`  | Axum-Router, alle Endpoints, Ingress-HTML-Panel                      | Integration-Tests via `tower::ServiceExt` |
+| `main.rs`    | Verdrahtung, Background-Sync-Task, Server-Start                      | –                                         |

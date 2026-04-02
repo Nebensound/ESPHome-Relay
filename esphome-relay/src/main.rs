@@ -53,7 +53,6 @@ async fn main() {
         status: status.clone(),
         webhook_secret: config.webhook_secret.clone(),
         refresh_notify: refresh_notify.clone(),
-        relay_base_url: relay_base_url.clone(),
     };
 
     // Spawn background sync task

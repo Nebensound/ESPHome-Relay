@@ -116,8 +116,8 @@ impl StatusTracker {
         status.sync_status = sync_status;
     }
 
-    /// Get status for a single device
-    #[allow(dead_code)]
+    /// Get status for a single device (used in tests)
+    #[cfg(test)]
     pub fn get_device(&self, device: &str) -> Option<DeviceStatus> {
         let map = self.devices.read().unwrap();
         map.get(device).cloned()
