@@ -28,6 +28,17 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('esphome-relay/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Check version sync (Cargo.toml == config.yaml)
+        run: |
+          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          CONFIG_VERSION=$(grep '^version:' config.yaml | sed 's/version: *//')
+          echo "Cargo.toml: $CARGO_VERSION"
+          echo "config.yaml: $CONFIG_VERSION"
+          if [ "$CARGO_VERSION" != "$CONFIG_VERSION" ]; then
+            echo "::error::Version mismatch! Cargo.toml ($CARGO_VERSION) != config.yaml ($CONFIG_VERSION)"
+            exit 1
+          fi
+
       - name: Run tests
         run: cargo test
 

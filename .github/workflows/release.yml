@@ -26,9 +26,32 @@ jobs:
           version_format: "${major}.${minor}.${patch}"
           bump_each_commit: false
 
+      - name: Update version in Cargo.toml and config.yaml
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          echo "Setting version to $VERSION"
+          cd esphome-relay
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+          sed -i "s/^version: .*/version: $VERSION/" config.yaml
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add esphome-relay/Cargo.toml esphome-relay/config.yaml
+          git diff --cached --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+          git push origin main
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
+
+      - name: Sync version back to develop
+        run: |
+          git fetch origin develop
+          git checkout develop
+          git merge main --no-edit
+          git push origin develop
