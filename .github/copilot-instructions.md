@@ -30,6 +30,11 @@ Siehe [README.md](../../README.md) für Projektbeschreibung, Konfiguration, API-
   - Sonst → Patch-Bump (Bugfixes)
 - **Commit-Messages**: Conventional Commits
 - **Rust**: Ein Modul pro Verantwortungsbereich (`github.rs`, `cache.rs`, `server.rs`, `webhook.rs`, `status.rs`, `config.rs`), API-Calls in dedizierten Modulen mit Rate-Limit-Respekt
+- **Formatierung**: Immer `cargo fmt` ausführen bevor Code committet wird. CI prüft mit `cargo fmt -- --check` und schlägt bei Abweichungen fehl.
+- **Clippy**: Code muss `cargo clippy -- -D warnings` bestehen (Warnings = Errors). Häufige Stolperfallen:
+  - `splitn(2, x)` → `split_once(x)` verwenden
+  - Felder/Methoden die erst zur Laufzeit genutzt werden: `#[allow(dead_code)]` annotieren
+  - Vor jedem Commit: `cargo fmt && cargo clippy -- -D warnings && cargo test`
 
 ## Design-Guidelines
 

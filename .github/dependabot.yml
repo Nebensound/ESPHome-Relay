@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /esphome-relay
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps):"
+    target-branch: develop
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(ci):"
+    target-branch: develop
+
+  - package-ecosystem: docker
+    directory: /esphome-relay
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(docker):"
+    target-branch: develop
