@@ -14,6 +14,7 @@ pub struct Asset {
     pub name: String,
     pub browser_download_url: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub size: u64,
 }
 

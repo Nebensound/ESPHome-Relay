@@ -5,8 +5,14 @@ use std::sync::{Arc, RwLock};
 /// Normalize a version string for comparison:
 /// strips leading 'v'/'V', then tries semver parse.
 pub fn versions_match(a: &str, b: &str) -> bool {
-    let a = a.strip_prefix('v').or_else(|| a.strip_prefix('V')).unwrap_or(a);
-    let b = b.strip_prefix('v').or_else(|| b.strip_prefix('V')).unwrap_or(b);
+    let a = a
+        .strip_prefix('v')
+        .or_else(|| a.strip_prefix('V'))
+        .unwrap_or(a);
+    let b = b
+        .strip_prefix('v')
+        .or_else(|| b.strip_prefix('V'))
+        .unwrap_or(b);
 
     // Try semver comparison first
     if let (Ok(va), Ok(vb)) = (semver::Version::parse(a), semver::Version::parse(b)) {
@@ -84,7 +90,9 @@ impl StatusTracker {
     /// Set local version for a device
     pub fn set_local_version(&self, device: &str, version: &str) {
         let mut map = self.devices.write().unwrap();
-        let status = map.entry(device.to_string()).or_insert_with(|| DeviceStatus::new(device));
+        let status = map
+            .entry(device.to_string())
+            .or_insert_with(|| DeviceStatus::new(device));
         status.local_version = Some(version.to_string());
         status.update_sync_status();
     }
@@ -92,7 +100,9 @@ impl StatusTracker {
     /// Set remote version for a device
     pub fn set_remote_version(&self, device: &str, version: &str) {
         let mut map = self.devices.write().unwrap();
-        let status = map.entry(device.to_string()).or_insert_with(|| DeviceStatus::new(device));
+        let status = map
+            .entry(device.to_string())
+            .or_insert_with(|| DeviceStatus::new(device));
         status.remote_version = Some(version.to_string());
         status.update_sync_status();
     }
@@ -100,11 +110,14 @@ impl StatusTracker {
     /// Set sync status directly (e.g. "loading" or "error")
     pub fn set_sync_status(&self, device: &str, sync_status: SyncStatus) {
         let mut map = self.devices.write().unwrap();
-        let status = map.entry(device.to_string()).or_insert_with(|| DeviceStatus::new(device));
+        let status = map
+            .entry(device.to_string())
+            .or_insert_with(|| DeviceStatus::new(device));
         status.sync_status = sync_status;
     }
 
     /// Get status for a single device
+    #[allow(dead_code)]
     pub fn get_device(&self, device: &str) -> Option<DeviceStatus> {
         let map = self.devices.read().unwrap();
         map.get(device).cloned()

@@ -28,11 +28,16 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     info!("ESPHome Firmware Relay startet...");
-    info!("Repo: {}, Poll-Intervall: {}min", config.github_repo, config.poll_interval_minutes);
+    info!(
+        "Repo: {}, Poll-Intervall: {}min",
+        config.github_repo, config.poll_interval_minutes
+    );
 
     // Init components
     let cache = Arc::new(FirmwareCache::new(&config.cache_dir));
-    cache.ensure_dir().expect("Cache-Verzeichnis konnte nicht erstellt werden");
+    cache
+        .ensure_dir()
+        .expect("Cache-Verzeichnis konnte nicht erstellt werden");
 
     let status = StatusTracker::new();
     let refresh_notify = Arc::new(Notify::new());
@@ -131,13 +136,19 @@ async fn do_sync(
                 let manifest_str = String::from_utf8_lossy(&manifest_bytes);
                 if let Err(e) = cache.store_manifest(&d.device_name, &manifest_str, relay_base_url)
                 {
-                    error!("Manifest speichern fehlgeschlagen für {}: {}", d.device_name, e);
+                    error!(
+                        "Manifest speichern fehlgeschlagen für {}: {}",
+                        d.device_name, e
+                    );
                     status.set_sync_status(&d.device_name, SyncStatus::Fehler);
                     continue;
                 }
             }
             Err(e) => {
-                error!("Manifest-Download fehlgeschlagen für {}: {}", d.device_name, e);
+                error!(
+                    "Manifest-Download fehlgeschlagen für {}: {}",
+                    d.device_name, e
+                );
                 status.set_sync_status(&d.device_name, SyncStatus::Fehler);
                 continue;
             }
@@ -147,13 +158,19 @@ async fn do_sync(
         match github.download_asset(&d.firmware_url).await {
             Ok(fw_bytes) => {
                 if let Err(e) = cache.store_firmware(&d.device_name, &fw_bytes) {
-                    error!("Firmware speichern fehlgeschlagen für {}: {}", d.device_name, e);
+                    error!(
+                        "Firmware speichern fehlgeschlagen für {}: {}",
+                        d.device_name, e
+                    );
                     status.set_sync_status(&d.device_name, SyncStatus::Fehler);
                     continue;
                 }
             }
             Err(e) => {
-                error!("Firmware-Download fehlgeschlagen für {}: {}", d.device_name, e);
+                error!(
+                    "Firmware-Download fehlgeschlagen für {}: {}",
+                    d.device_name, e
+                );
                 status.set_sync_status(&d.device_name, SyncStatus::Fehler);
                 continue;
             }
@@ -170,5 +187,9 @@ async fn do_sync(
     }
     status.retain_devices(&device_names);
 
-    info!("Sync abgeschlossen: {} Geräte, {} entfernt", devices.len(), removed.len());
+    info!(
+        "Sync abgeschlossen: {} Geräte, {} entfernt",
+        devices.len(),
+        removed.len()
+    );
 }

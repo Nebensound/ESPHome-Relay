@@ -21,6 +21,7 @@ pub struct AppState {
     pub status: StatusTracker,
     pub webhook_secret: Option<String>,
     pub refresh_notify: Arc<Notify>,
+    #[allow(dead_code)]
     pub relay_base_url: String,
 }
 
@@ -73,12 +74,7 @@ async fn get_manifest(
     state
         .cache
         .read_manifest(&name)
-        .map(|m| {
-            (
-                [(axum::http::header::CONTENT_TYPE, "application/json")],
-                m,
-            )
-        })
+        .map(|m| ([(axum::http::header::CONTENT_TYPE, "application/json")], m))
         .ok_or(StatusCode::NOT_FOUND)
 }
 
@@ -91,10 +87,7 @@ async fn get_firmware(
         .read_firmware(&name)
         .map(|data| {
             (
-                [(
-                    axum::http::header::CONTENT_TYPE,
-                    "application/octet-stream",
-                )],
+                [(axum::http::header::CONTENT_TYPE, "application/octet-stream")],
                 data,
             )
         })
@@ -270,10 +263,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_devices_with_cached() {
         let state = test_state();
-        state
-            .cache
-            .store_firmware("test-esp", &[0xAB])
-            .unwrap();
+        state.cache.store_firmware("test-esp", &[0xAB]).unwrap();
         let app = build_router(state);
         let (status, body) = request(app, "GET", "/devices").await;
         assert_eq!(status, StatusCode::OK);

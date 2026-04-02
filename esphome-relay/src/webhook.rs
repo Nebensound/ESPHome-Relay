@@ -18,8 +18,8 @@ pub fn verify_signature(secret: &str, body: &[u8], signature_header: &str) -> bo
         Err(_) => return false,
     };
 
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-        .expect("HMAC accepts any key length");
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
     mac.update(body);
 
     mac.verify_slice(&sig_bytes).is_ok()

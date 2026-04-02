@@ -222,12 +222,8 @@ mod tests {
     #[test]
     fn test_list_devices() {
         let (_tmp, cache) = setup();
-        cache
-            .store_firmware("device-b", &[1])
-            .unwrap();
-        cache
-            .store_firmware("device-a", &[2])
-            .unwrap();
+        cache.store_firmware("device-b", &[1]).unwrap();
+        cache.store_firmware("device-a", &[2]).unwrap();
 
         let devices = cache.list_devices();
         assert_eq!(devices, vec!["device-a", "device-b"]);

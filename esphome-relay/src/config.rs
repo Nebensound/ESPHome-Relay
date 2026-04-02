@@ -70,9 +70,7 @@ impl Config {
 
     /// Returns (owner, repo) tuple parsed from github_repo
     pub fn repo_parts(&self) -> (&str, &str) {
-        let mut parts = self.github_repo.splitn(2, '/');
-        let owner = parts.next().unwrap();
-        let repo = parts.next().unwrap();
+        let (owner, repo) = self.github_repo.split_once('/').unwrap();
         (owner, repo)
     }
 }
@@ -91,14 +89,16 @@ mod tests {
 
     #[test]
     fn test_full_config() {
-        let f = write_config(r#"{
+        let f = write_config(
+            r#"{
             "github_token": "ghp_test123",
             "github_repo": "Nebensound/wagnerhof-esphome",
             "poll_interval_minutes": 15,
             "webhook_secret": "mysecret",
             "cache_dir": "/tmp/cache",
             "log_level": "debug"
-        }"#);
+        }"#,
+        );
         let cfg = Config::load_from_file(f.path()).unwrap();
         assert_eq!(cfg.github_token, "ghp_test123");
         assert_eq!(cfg.github_repo, "Nebensound/wagnerhof-esphome");
