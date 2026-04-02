@@ -41,7 +41,9 @@ impl Config {
     }
 
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        Self::load_from_file(Path::new("/data/options.json"))
+        let path =
+            std::env::var("OPTIONS_PATH").unwrap_or_else(|_| "/data/options.json".to_string());
+        Self::load_from_file(Path::new(&path))
     }
 
     fn validate(&self) -> Result<(), Box<dyn std::error::Error>> {

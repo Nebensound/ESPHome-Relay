@@ -279,5 +279,4 @@ mod tests {
         let release: Release = serde_json::from_str(json).unwrap();
         assert_eq!(release.tag_name, "v1.0");
     }
-
 }
