@@ -1,6 +1,6 @@
 name: ESPHome Firmware Relay
 description: Lokaler Proxy/Cache für ESPHome OTA-Updates aus privaten GitHub Repos
-version: 0.3.2
+version: 0.3.3
 slug: esphome-relay
 image: ghcr.io/nebensound/esphome-relay
 url: https://github.com/Nebensound/ESPHome-Relay
