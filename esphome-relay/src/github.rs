@@ -154,23 +154,18 @@ impl GitHubClient {
 /// Parse release assets into per-device info.
 ///
 /// Expects naming convention from ESPHome CI:
-///   - `<device-name>/manifest.json`
-///   - `<device-name>/firmware.ota.bin`
-///
-/// OR flat naming:
-///   - `<device-name>-manifest.json`
-///   - `<device-name>-firmware.ota.bin`
+///   - `<device-name>.manifest.json`  (manifest)
+///   - `<device-name>.ota.bin`        (firmware binary)
 pub fn parse_device_assets(release: &Release) -> Vec<DeviceAssets> {
     let mut manifests: std::collections::HashMap<String, &Asset> = std::collections::HashMap::new();
     let mut firmwares: std::collections::HashMap<String, &Asset> = std::collections::HashMap::new();
 
     for asset in &release.assets {
-        // Try flat naming: device-name-manifest.json / device-name-firmware.ota.bin
-        if asset.name.ends_with("-manifest.json") {
-            let device = asset.name.trim_end_matches("-manifest.json");
+        if asset.name.ends_with(".manifest.json") {
+            let device = asset.name.trim_end_matches(".manifest.json");
             manifests.insert(device.to_string(), asset);
-        } else if asset.name.ends_with("-firmware.ota.bin") {
-            let device = asset.name.trim_end_matches("-firmware.ota.bin");
+        } else if asset.name.ends_with(".ota.bin") {
+            let device = asset.name.trim_end_matches(".ota.bin");
             firmwares.insert(device.to_string(), asset);
         }
     }
@@ -221,13 +216,13 @@ mod tests {
         let release = make_release(
             "v2025.1.0",
             vec![
-                make_asset("living-room-manifest.json", "https://gh/manifest"),
-                make_asset("living-room-firmware.ota.bin", "https://gh/firmware"),
+                make_asset("aufzug-lager.manifest.json", "https://gh/manifest"),
+                make_asset("aufzug-lager.ota.bin", "https://gh/firmware"),
             ],
         );
         let devices = parse_device_assets(&release);
         assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].device_name, "living-room");
+        assert_eq!(devices[0].device_name, "aufzug-lager");
         assert_eq!(devices[0].version, "v2025.1.0");
         assert_eq!(devices[0].manifest_url, "https://gh/manifest");
         assert_eq!(devices[0].firmware_url, "https://gh/firmware");
@@ -238,23 +233,23 @@ mod tests {
         let release = make_release(
             "v1.0",
             vec![
-                make_asset("device-a-manifest.json", "https://gh/a-manifest"),
-                make_asset("device-a-firmware.ota.bin", "https://gh/a-firmware"),
-                make_asset("device-b-manifest.json", "https://gh/b-manifest"),
-                make_asset("device-b-firmware.ota.bin", "https://gh/b-firmware"),
+                make_asset("aufzug-lager.manifest.json", "https://gh/a-manifest"),
+                make_asset("aufzug-lager.ota.bin", "https://gh/a-firmware"),
+                make_asset("brutschrank.manifest.json", "https://gh/b-manifest"),
+                make_asset("brutschrank.ota.bin", "https://gh/b-firmware"),
             ],
         );
         let devices = parse_device_assets(&release);
         assert_eq!(devices.len(), 2);
-        assert_eq!(devices[0].device_name, "device-a");
-        assert_eq!(devices[1].device_name, "device-b");
+        assert_eq!(devices[0].device_name, "aufzug-lager");
+        assert_eq!(devices[1].device_name, "brutschrank");
     }
 
     #[test]
     fn test_parse_manifest_without_firmware_skipped() {
         let release = make_release(
             "v1.0",
-            vec![make_asset("orphan-manifest.json", "https://gh/manifest")],
+            vec![make_asset("orphan.manifest.json", "https://gh/manifest")],
         );
         let devices = parse_device_assets(&release);
         assert!(devices.is_empty());
@@ -264,7 +259,7 @@ mod tests {
     fn test_parse_firmware_without_manifest_skipped() {
         let release = make_release(
             "v1.0",
-            vec![make_asset("orphan-firmware.ota.bin", "https://gh/firmware")],
+            vec![make_asset("orphan.ota.bin", "https://gh/firmware")],
         );
         let devices = parse_device_assets(&release);
         assert!(devices.is_empty());
@@ -284,8 +279,8 @@ mod tests {
             vec![
                 make_asset("README.md", "https://gh/readme"),
                 make_asset("checksums.txt", "https://gh/checksums"),
-                make_asset("my-esp-manifest.json", "https://gh/manifest"),
-                make_asset("my-esp-firmware.ota.bin", "https://gh/firmware"),
+                make_asset("my-esp.manifest.json", "https://gh/manifest"),
+                make_asset("my-esp.ota.bin", "https://gh/firmware"),
             ],
         );
         let devices = parse_device_assets(&release);
@@ -301,7 +296,7 @@ mod tests {
             "tag_name": "v2025.3.0",
             "assets": [
                 {
-                    "name": "test-firmware.ota.bin",
+                    "name": "test.ota.bin",
                     "browser_download_url": "https://example.com/fw",
                     "size": 512000
                 }
@@ -310,7 +305,7 @@ mod tests {
         let release: Release = serde_json::from_str(json).unwrap();
         assert_eq!(release.tag_name, "v2025.3.0");
         assert_eq!(release.assets.len(), 1);
-        assert_eq!(release.assets[0].name, "test-firmware.ota.bin");
+        assert_eq!(release.assets[0].name, "test.ota.bin");
     }
 
     #[test]

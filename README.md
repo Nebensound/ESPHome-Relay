@@ -51,6 +51,17 @@ POST /webhook/github                    GitHub Webhook Endpoint (HMAC-SHA256 val
 5. **Serving**: ESPHome-Geräte holen sich Manifest und Firmware per HTTP vom Relay
 6. **Manueller Refresh**: `POST /refresh` für sofortigen Cache-Refresh per HA-Automation (LAN, ohne Auth)
 
+### Release-Asset-Format
+
+Der Relay erkennt Geräte anhand der Asset-Namen im GitHub Release. Erwartet wird das ESPHome CI-Namensformat:
+
+```
+<gerätename>.manifest.json    → z.B. aufzug-lager.manifest.json
+<gerätename>.ota.bin           → z.B. aufzug-lager.ota.bin
+```
+
+Pro Gerät müssen **beide** Assets (Manifest + Firmware) vorhanden sein. Assets ohne Gegenstück werden ignoriert.
+
 ### Status-Dashboard (HA-Ingress)
 
 Das Addon stellt ein einfaches Web-Panel über Home Assistant Ingress bereit. Es zeigt:
