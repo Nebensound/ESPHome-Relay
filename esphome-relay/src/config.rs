@@ -17,7 +17,7 @@ pub struct Config {
 }
 
 fn default_repo() -> String {
-    "Nebensound/wagnerhof-esphome".to_string()
+    "Nebensound/ESPHome-WagnerHof".to_string()
 }
 
 fn default_poll_interval() -> u32 {
@@ -94,7 +94,7 @@ mod tests {
         let f = write_config(
             r#"{
             "github_token": "ghp_test123",
-            "github_repo": "Nebensound/wagnerhof-esphome",
+            "github_repo": "Nebensound/ESPHome-WagnerHof",
             "poll_interval_minutes": 15,
             "webhook_secret": "mysecret",
             "cache_dir": "/tmp/cache",
@@ -103,7 +103,7 @@ mod tests {
         );
         let cfg = Config::load_from_file(f.path()).unwrap();
         assert_eq!(cfg.github_token, "ghp_test123");
-        assert_eq!(cfg.github_repo, "Nebensound/wagnerhof-esphome");
+        assert_eq!(cfg.github_repo, "Nebensound/ESPHome-WagnerHof");
         assert_eq!(cfg.poll_interval_minutes, 15);
         assert_eq!(cfg.webhook_secret.as_deref(), Some("mysecret"));
         assert_eq!(cfg.cache_dir, "/tmp/cache");
@@ -114,7 +114,7 @@ mod tests {
     fn test_defaults() {
         let f = write_config(r#"{ "github_token": "ghp_abc" }"#);
         let cfg = Config::load_from_file(f.path()).unwrap();
-        assert_eq!(cfg.github_repo, "Nebensound/wagnerhof-esphome");
+        assert_eq!(cfg.github_repo, "Nebensound/ESPHome-WagnerHof");
         assert_eq!(cfg.poll_interval_minutes, 30);
         assert_eq!(cfg.cache_dir, "/data/firmware-cache");
         assert_eq!(cfg.log_level, "info");

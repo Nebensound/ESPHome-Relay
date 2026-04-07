@@ -24,7 +24,7 @@ ESPs können keine privaten GitHub-Repos erreichen (kein Auth-Header auf Mikroco
 | Option                  | Typ          | Standard                       | Beschreibung                              |
 | ----------------------- | ------------ | ------------------------------ | ----------------------------------------- |
 | `github_token`          | string       | –                              | GitHub PAT mit `Contents: read` Scope     |
-| `github_repo`           | string       | `Nebensound/wagnerhof-esphome` | Privates Repo mit Firmware-Releases       |
+| `github_repo`           | string       | `Nebensound/ESPHome-WagnerHof` | Privates Repo mit Firmware-Releases       |
 | `poll_interval_minutes` | int (5–1440) | `30`                           | Intervall für Release-Checks              |
 | `webhook_secret`        | string       | –                              | Shared Secret für GitHub Webhook (HMAC-SHA256 Signatur-Validierung) |
 | `cache_dir`             | string       | `/data/firmware-cache`         | Lokaler Cache-Pfad                        |
@@ -50,6 +50,17 @@ POST /webhook/github                    GitHub Webhook Endpoint (HMAC-SHA256 val
 4. **Manifest-Rewrite**: Schreibt `path` im Manifest auf lokale Relay-URL um (`http://<host>:8099/devices/<name>/firmware.ota.bin`)
 5. **Serving**: ESPHome-Geräte holen sich Manifest und Firmware per HTTP vom Relay
 6. **Manueller Refresh**: `POST /refresh` für sofortigen Cache-Refresh per HA-Automation (LAN, ohne Auth)
+
+### Release-Asset-Format
+
+Der Relay erkennt Geräte anhand der Asset-Namen im GitHub Release. Erwartet wird das ESPHome CI-Namensformat:
+
+```
+<gerätename>.manifest.json    → z.B. aufzug-lager.manifest.json
+<gerätename>.ota.bin           → z.B. aufzug-lager.ota.bin
+```
+
+Pro Gerät müssen **beide** Assets (Manifest + Firmware) vorhanden sein. Assets ohne Gegenstück werden ignoriert.
 
 ### Status-Dashboard (HA-Ingress)
 

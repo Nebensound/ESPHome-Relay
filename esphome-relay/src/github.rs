@@ -53,8 +53,12 @@ impl GitHubClient {
         }
     }
 
-    /// Fetch the latest release from the GitHub API
+    /// Fetch the latest release from the GitHub API.
+    ///
+    /// Tries `/releases/latest` first (only published, non-prerelease).
+    /// On 404, falls back to `/releases?per_page=1` which includes pre-releases.
     pub async fn get_latest_release(&self) -> Result<Release, Box<dyn std::error::Error>> {
+        // Try /releases/latest first
         let url = format!(
             "{}/repos/{}/{}/releases/latest",
             self.api_base, self.owner, self.repo
@@ -69,15 +73,56 @@ impl GitHubClient {
             .send()
             .await?;
 
+        if resp.status() == reqwest::StatusCode::NOT_FOUND {
+            debug!("/releases/latest returned 404, falling back to /releases");
+            return self.get_latest_release_fallback().await;
+        }
+
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(format!("GitHub API error {}: {}", status, body).into());
+            return Err(format!("GitHub API error {} for {}: {}", status, url, body).into());
         }
 
         let release: Release = resp.json().await?;
         info!(
             "Latest release: {} ({} assets)",
+            release.tag_name,
+            release.assets.len()
+        );
+        Ok(release)
+    }
+
+    /// Fallback: fetch releases list (includes pre-releases) and return the first one.
+    async fn get_latest_release_fallback(&self) -> Result<Release, Box<dyn std::error::Error>> {
+        let url = format!(
+            "{}/repos/{}/{}/releases?per_page=1",
+            self.api_base, self.owner, self.repo
+        );
+        debug!("Fetching releases list from {}", url);
+
+        let resp = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("GitHub API error {} for {}: {}", status, url, body).into());
+        }
+
+        let releases: Vec<Release> = resp.json().await?;
+        let release = releases
+            .into_iter()
+            .next()
+            .ok_or("Keine Releases im Repository gefunden")?;
+
+        info!(
+            "Latest release (via fallback): {} ({} assets)",
             release.tag_name,
             release.assets.len()
         );
@@ -97,7 +142,7 @@ impl GitHubClient {
 
         if !resp.status().is_success() {
             let status = resp.status();
-            return Err(format!("Download failed {}: {}", status, url).into());
+            return Err(format!("Download failed {} for {}", status, url).into());
         }
 
         let bytes = resp.bytes().await?;
@@ -109,23 +154,18 @@ impl GitHubClient {
 /// Parse release assets into per-device info.
 ///
 /// Expects naming convention from ESPHome CI:
-///   - `<device-name>/manifest.json`
-///   - `<device-name>/firmware.ota.bin`
-///
-/// OR flat naming:
-///   - `<device-name>-manifest.json`
-///   - `<device-name>-firmware.ota.bin`
+///   - `<device-name>.manifest.json`  (manifest)
+///   - `<device-name>.ota.bin`        (firmware binary)
 pub fn parse_device_assets(release: &Release) -> Vec<DeviceAssets> {
     let mut manifests: std::collections::HashMap<String, &Asset> = std::collections::HashMap::new();
     let mut firmwares: std::collections::HashMap<String, &Asset> = std::collections::HashMap::new();
 
     for asset in &release.assets {
-        // Try flat naming: device-name-manifest.json / device-name-firmware.ota.bin
-        if asset.name.ends_with("-manifest.json") {
-            let device = asset.name.trim_end_matches("-manifest.json");
+        if asset.name.ends_with(".manifest.json") {
+            let device = asset.name.trim_end_matches(".manifest.json");
             manifests.insert(device.to_string(), asset);
-        } else if asset.name.ends_with("-firmware.ota.bin") {
-            let device = asset.name.trim_end_matches("-firmware.ota.bin");
+        } else if asset.name.ends_with(".ota.bin") {
+            let device = asset.name.trim_end_matches(".ota.bin");
             firmwares.insert(device.to_string(), asset);
         }
     }
@@ -176,13 +216,13 @@ mod tests {
         let release = make_release(
             "v2025.1.0",
             vec![
-                make_asset("living-room-manifest.json", "https://gh/manifest"),
-                make_asset("living-room-firmware.ota.bin", "https://gh/firmware"),
+                make_asset("aufzug-lager.manifest.json", "https://gh/manifest"),
+                make_asset("aufzug-lager.ota.bin", "https://gh/firmware"),
             ],
         );
         let devices = parse_device_assets(&release);
         assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].device_name, "living-room");
+        assert_eq!(devices[0].device_name, "aufzug-lager");
         assert_eq!(devices[0].version, "v2025.1.0");
         assert_eq!(devices[0].manifest_url, "https://gh/manifest");
         assert_eq!(devices[0].firmware_url, "https://gh/firmware");
@@ -193,23 +233,23 @@ mod tests {
         let release = make_release(
             "v1.0",
             vec![
-                make_asset("device-a-manifest.json", "https://gh/a-manifest"),
-                make_asset("device-a-firmware.ota.bin", "https://gh/a-firmware"),
-                make_asset("device-b-manifest.json", "https://gh/b-manifest"),
-                make_asset("device-b-firmware.ota.bin", "https://gh/b-firmware"),
+                make_asset("aufzug-lager.manifest.json", "https://gh/a-manifest"),
+                make_asset("aufzug-lager.ota.bin", "https://gh/a-firmware"),
+                make_asset("brutschrank.manifest.json", "https://gh/b-manifest"),
+                make_asset("brutschrank.ota.bin", "https://gh/b-firmware"),
             ],
         );
         let devices = parse_device_assets(&release);
         assert_eq!(devices.len(), 2);
-        assert_eq!(devices[0].device_name, "device-a");
-        assert_eq!(devices[1].device_name, "device-b");
+        assert_eq!(devices[0].device_name, "aufzug-lager");
+        assert_eq!(devices[1].device_name, "brutschrank");
     }
 
     #[test]
     fn test_parse_manifest_without_firmware_skipped() {
         let release = make_release(
             "v1.0",
-            vec![make_asset("orphan-manifest.json", "https://gh/manifest")],
+            vec![make_asset("orphan.manifest.json", "https://gh/manifest")],
         );
         let devices = parse_device_assets(&release);
         assert!(devices.is_empty());
@@ -219,7 +259,7 @@ mod tests {
     fn test_parse_firmware_without_manifest_skipped() {
         let release = make_release(
             "v1.0",
-            vec![make_asset("orphan-firmware.ota.bin", "https://gh/firmware")],
+            vec![make_asset("orphan.ota.bin", "https://gh/firmware")],
         );
         let devices = parse_device_assets(&release);
         assert!(devices.is_empty());
@@ -239,8 +279,8 @@ mod tests {
             vec![
                 make_asset("README.md", "https://gh/readme"),
                 make_asset("checksums.txt", "https://gh/checksums"),
-                make_asset("my-esp-manifest.json", "https://gh/manifest"),
-                make_asset("my-esp-firmware.ota.bin", "https://gh/firmware"),
+                make_asset("my-esp.manifest.json", "https://gh/manifest"),
+                make_asset("my-esp.ota.bin", "https://gh/firmware"),
             ],
         );
         let devices = parse_device_assets(&release);
@@ -256,7 +296,7 @@ mod tests {
             "tag_name": "v2025.3.0",
             "assets": [
                 {
-                    "name": "test-firmware.ota.bin",
+                    "name": "test.ota.bin",
                     "browser_download_url": "https://example.com/fw",
                     "size": 512000
                 }
@@ -265,7 +305,7 @@ mod tests {
         let release: Release = serde_json::from_str(json).unwrap();
         assert_eq!(release.tag_name, "v2025.3.0");
         assert_eq!(release.assets.len(), 1);
-        assert_eq!(release.assets[0].name, "test-firmware.ota.bin");
+        assert_eq!(release.assets[0].name, "test.ota.bin");
     }
 
     #[test]
@@ -278,5 +318,70 @@ mod tests {
         }"#;
         let release: Release = serde_json::from_str(json).unwrap();
         assert_eq!(release.tag_name, "v1.0");
+    }
+
+    // --- HTTP integration tests ---
+
+    #[tokio::test]
+    async fn test_get_latest_release_calls_correct_url() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/repos/Nebensound/ESPHome-WagnerHof/releases/latest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "tag_name": "v1.0.0",
+                "assets": []
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = GitHubClient::with_base_url(
+            "fake-token",
+            "Nebensound",
+            "ESPHome-WagnerHof",
+            &mock_server.uri(),
+        );
+        let release = client.get_latest_release().await.unwrap();
+        assert_eq!(release.tag_name, "v1.0.0");
+    }
+
+    #[tokio::test]
+    async fn test_get_latest_release_fallback_on_404() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        // /releases/latest returns 404
+        Mock::given(method("GET"))
+            .and(path("/repos/MyOwner/MyRepo/releases/latest"))
+            .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({
+                "message": "Not Found"
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // /releases?per_page=1 returns a pre-release
+        Mock::given(method("GET"))
+            .and(path("/repos/MyOwner/MyRepo/releases"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+                {
+                    "tag_name": "v0.1.0-beta",
+                    "assets": []
+                }
+            ])))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            GitHubClient::with_base_url("fake-token", "MyOwner", "MyRepo", &mock_server.uri());
+        let release = client.get_latest_release().await.unwrap();
+        assert_eq!(release.tag_name, "v0.1.0-beta");
     }
 }
