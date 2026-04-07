@@ -24,7 +24,7 @@ ESPs können keine privaten GitHub-Repos erreichen (kein Auth-Header auf Mikroco
 | Option                  | Typ          | Standard                       | Beschreibung                              |
 | ----------------------- | ------------ | ------------------------------ | ----------------------------------------- |
 | `github_token`          | string       | –                              | GitHub PAT mit `Contents: read` Scope     |
-| `github_repo`           | string       | `Nebensound/wagnerhof-esphome` | Privates Repo mit Firmware-Releases       |
+| `github_repo`           | string       | `Nebensound/ESPHome-WagnerHof` | Privates Repo mit Firmware-Releases       |
 | `poll_interval_minutes` | int (5–1440) | `30`                           | Intervall für Release-Checks              |
 | `webhook_secret`        | string       | –                              | Shared Secret für GitHub Webhook (HMAC-SHA256 Signatur-Validierung) |
 | `cache_dir`             | string       | `/data/firmware-cache`         | Lokaler Cache-Pfad                        |

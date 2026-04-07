@@ -53,8 +53,12 @@ impl GitHubClient {
         }
     }
 
-    /// Fetch the latest release from the GitHub API
+    /// Fetch the latest release from the GitHub API.
+    ///
+    /// Tries `/releases/latest` first (only published, non-prerelease).
+    /// On 404, falls back to `/releases?per_page=1` which includes pre-releases.
     pub async fn get_latest_release(&self) -> Result<Release, Box<dyn std::error::Error>> {
+        // Try /releases/latest first
         let url = format!(
             "{}/repos/{}/{}/releases/latest",
             self.api_base, self.owner, self.repo
@@ -69,15 +73,56 @@ impl GitHubClient {
             .send()
             .await?;
 
+        if resp.status() == reqwest::StatusCode::NOT_FOUND {
+            debug!("/releases/latest returned 404, falling back to /releases");
+            return self.get_latest_release_fallback().await;
+        }
+
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(format!("GitHub API error {}: {}", status, body).into());
+            return Err(format!("GitHub API error {} for {}: {}", status, url, body).into());
         }
 
         let release: Release = resp.json().await?;
         info!(
             "Latest release: {} ({} assets)",
+            release.tag_name,
+            release.assets.len()
+        );
+        Ok(release)
+    }
+
+    /// Fallback: fetch releases list (includes pre-releases) and return the first one.
+    async fn get_latest_release_fallback(&self) -> Result<Release, Box<dyn std::error::Error>> {
+        let url = format!(
+            "{}/repos/{}/{}/releases?per_page=1",
+            self.api_base, self.owner, self.repo
+        );
+        debug!("Fetching releases list from {}", url);
+
+        let resp = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("GitHub API error {} for {}: {}", status, url, body).into());
+        }
+
+        let releases: Vec<Release> = resp.json().await?;
+        let release = releases
+            .into_iter()
+            .next()
+            .ok_or("Keine Releases im Repository gefunden")?;
+
+        info!(
+            "Latest release (via fallback): {} ({} assets)",
             release.tag_name,
             release.assets.len()
         );
@@ -97,7 +142,7 @@ impl GitHubClient {
 
         if !resp.status().is_success() {
             let status = resp.status();
-            return Err(format!("Download failed {}: {}", status, url).into());
+            return Err(format!("Download failed {} for {}", status, url).into());
         }
 
         let bytes = resp.bytes().await?;
@@ -278,5 +323,70 @@ mod tests {
         }"#;
         let release: Release = serde_json::from_str(json).unwrap();
         assert_eq!(release.tag_name, "v1.0");
+    }
+
+    // --- HTTP integration tests ---
+
+    #[tokio::test]
+    async fn test_get_latest_release_calls_correct_url() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/repos/Nebensound/ESPHome-WagnerHof/releases/latest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "tag_name": "v1.0.0",
+                "assets": []
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = GitHubClient::with_base_url(
+            "fake-token",
+            "Nebensound",
+            "ESPHome-WagnerHof",
+            &mock_server.uri(),
+        );
+        let release = client.get_latest_release().await.unwrap();
+        assert_eq!(release.tag_name, "v1.0.0");
+    }
+
+    #[tokio::test]
+    async fn test_get_latest_release_fallback_on_404() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        // /releases/latest returns 404
+        Mock::given(method("GET"))
+            .and(path("/repos/MyOwner/MyRepo/releases/latest"))
+            .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({
+                "message": "Not Found"
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        // /releases?per_page=1 returns a pre-release
+        Mock::given(method("GET"))
+            .and(path("/repos/MyOwner/MyRepo/releases"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+                {
+                    "tag_name": "v0.1.0-beta",
+                    "assets": []
+                }
+            ])))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            GitHubClient::with_base_url("fake-token", "MyOwner", "MyRepo", &mock_server.uri());
+        let release = client.get_latest_release().await.unwrap();
+        assert_eq!(release.tag_name, "v0.1.0-beta");
     }
 }

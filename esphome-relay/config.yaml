@@ -16,7 +16,7 @@ panel_icon: mdi:chip
 panel_title: ESPHome Relay
 options:
   github_token: ""
-  github_repo: "Nebensound/wagnerhof-esphome"
+  github_repo: "Nebensound/ESPHome-WagnerHof"
   poll_interval_minutes: 30
   webhook_secret: ""
   cache_dir: "/data/firmware-cache"

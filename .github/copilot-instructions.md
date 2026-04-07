@@ -96,7 +96,7 @@ sudo mkdir -p /data
 cat > /tmp/options.json << 'EOF'
 {
   "github_token": "ghp_...",
-  "github_repo": "Nebensound/wagnerhof-esphome",
+  "github_repo": "Nebensound/ESPHome-WagnerHof",
   "poll_interval_minutes": 5,
   "cache_dir": "/tmp/firmware-cache",
   "log_level": "debug"
